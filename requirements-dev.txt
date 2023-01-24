@@ -1,0 +1,8 @@
+# Copyright (C) 2023 Mitsubishi Electric Research Laboratories (MERL)
+#
+# SPDX-License-Identifier: MIT
+
+pre-commit
+black>=22
+flake8
+pytest

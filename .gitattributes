@@ -1,0 +1,5 @@
+# Copyright (C) 2023 Mitsubishi Electric Research Laboratories (MERL)
+#
+# SPDX-License-Identifier: MIT
+
+*.pth filter=lfs diff=lfs merge=lfs -text
