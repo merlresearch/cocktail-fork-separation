@@ -39,6 +39,7 @@ class DivideAndRemaster(data.Dataset):
             self.chunk_size = -1
         self.random_start = random_start
         self.track_list = self._get_tracklist()
+        self._check_subset_lengths(subset)
 
     def _get_tracklist(self) -> List[str]:
         path = Path(self.path)
@@ -50,6 +51,17 @@ class DivideAndRemaster(data.Dataset):
             name = str(root.relative_to(path))
             names.append(name)
         return sorted(names)
+
+    def _check_subset_lengths(self, subset: str):
+        """
+        Assert if the number of files is incorrect, to ensure we are using DnR v2 not an old version
+        """
+        if subset == "tr":
+            assert len(self.track_list) == 3406, "Expected 3406 mix in training set"
+        elif subset == "cv":
+            assert len(self.track_list) == 487, "Expected 487 mix in validation set"
+        elif subset == "tt":
+            assert len(self.track_list) == 973, "Expected 973 mix in testing set"
 
     def _get_audio_path(self, track_name: str, source_name: str) -> Path:
         return Path(self.path) / track_name / f"{source_name}{EXT}"

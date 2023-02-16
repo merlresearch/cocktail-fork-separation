@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-torch==1.10.0
-torchaudio==0.10.0
-pytorch_lightning==1.8.6
+pyloudnorm==0.1.1
+pytorch_lightning==1.9.0
+torch==1.13.1
+torchaudio==0.13.1

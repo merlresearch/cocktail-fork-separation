@@ -1,5 +1,7 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 
-Files: checkpoints/default_mrx_pre_trained_weights.pth
+Files:
+    checkpoints/default_mrx_pre_trained_weights.pth
+    checkpoints/paper_mrx_pre_trained_weights.pth
 Copyright: 2023 Mitsubishi Electric Research Laboratories (MERL)
 License: MIT

@@ -38,6 +38,8 @@ The code has been tested using `python 3.9`. Necessary dependencies can be insta
 pip install -r requirements.txt
 ```
 
+If you prefer to use the [torchaudio soundfile backend](https://pytorch.org/audio/stable/backend.html) (required on windows) please refer to the [SoundFile documentation](https://pysoundfile.readthedocs.io/en/latest/) for installation instructions.
+
 Please modify pytorch installation depending on your particular CUDA version if necessary.
 
 ## Using a pre-trained model
@@ -69,6 +71,11 @@ state_dict = torch.load(MY_TRAINED_MODEL_PATH)
 my_model.load_state_dict(state_dict)
 enhanced_dict = separate.separate_soundtrack(audio_tensor, separation_model=my_model, ...)
 ```
+
+We include two pre-trained models in the `checkpoints` directory:
+1. `default_mrx_pre_trained_weights.pth`: This is the model trained using the default arguments from [`lightning_train.py`](./lightning_train.py), except the training loss is SNR (`--loss snr`). This ensures that the level of the output signals matches the mixture.
+2. `paper_mrx_pre_trained_weights.pth`: This is the model trained using the default arguments from [`lightning_train.py`](./lightning_train.py) including scale-invariant SNR loss function, which reproduces the results from our ICASSP paper.
+However, due to the scale-invariant training the level of the output signals will not match the mixture.
 
 ## Training a model on the Divide and Remaster Dataset
 

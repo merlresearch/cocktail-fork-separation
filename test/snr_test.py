@@ -4,7 +4,7 @@
 
 import torch
 
-from si_snr import si_snr
+from snr import snr_loss
 
 
 def test_si_snr_scale_invariant():
@@ -13,6 +13,6 @@ def test_si_snr_scale_invariant():
     estimation_errors = 0.1 * torch.rand(targets.shape)
     estimates = targets + estimation_errors
     estimates_scale = 0.5 * estimates
-    loss_no_scale = si_snr(estimates, targets)
-    loss_scale = si_snr(estimates_scale, targets)
-    torch.testing.assert_allclose(loss_scale, loss_no_scale)
+    loss_no_scale = snr_loss(estimates, targets)
+    loss_scale = snr_loss(estimates_scale, targets)
+    torch.testing.assert_close(loss_scale, loss_no_scale)

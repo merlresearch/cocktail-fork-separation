@@ -15,16 +15,16 @@ from mrx import MRX
 from separate import DEFAULT_PRE_TRAINED_MODEL_PATH
 
 
-def _read_checkpoint(checkpoint_path):
+def _read_checkpoint(checkpoint_path, **kwargs):
     ckpt = torch.load(checkpoint_path, map_location="cpu")
     if "state_dict" in ckpt.keys():
         # lightning module checkpoint
-        model = CocktailForkModule.load_from_checkpoint(checkpoint_path)
+        model = CocktailForkModule.load_from_checkpoint(checkpoint_path, **kwargs)
     else:
         # only network weights
         model = MRX()
         model.load_state_dict(ckpt)
-        model = CocktailForkModule(model=model)
+        model = CocktailForkModule(model=model, **kwargs)
     return model
 
 
@@ -42,6 +42,14 @@ def _lightning_eval():
         help="Path to trained model weights. Can be a pytorch_lightning checkpoint or pytorch state_dict",
     )
     parser.add_argument("--gpu-device", default=-1, type=int, help="The gpu device for model inference. (default: -1)")
+    parser.add_argument(
+        "--mixture-residual",
+        default="pass",
+        type=str,
+        choices=["all", "pass", "music_sfx"],
+        help="Whether to add the residual to estimates, 'pass' doesn't add residual, 'all' splits residual among "
+        "all sources, 'music_sfx' splits residual among only music and sfx sources . (default: pass)",
+    )
     args = parser.parse_args()
 
     test_dataset = DivideAndRemaster(args.root_dir, "tt")
@@ -64,7 +72,8 @@ def _lightning_eval():
         accelerator=accelerator,
         enable_progress_bar=True,  # this will print the results to the command line
     )
-    model = _read_checkpoint(args.checkpoint)
+
+    model = _read_checkpoint(args.checkpoint, mixture_residual=args.mixture_residual)
     trainer.test(model, test_loader)
 
 

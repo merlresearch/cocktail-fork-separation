@@ -11,23 +11,27 @@ from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from torch.utils.data import DataLoader
 
+from consistency import dnr_consistency
 from dnr_dataset import SOURCE_NAMES, DivideAndRemaster
 from mrx import MRX
-from si_snr import si_snr
+from snr import snr_loss
 
 
 class CocktailForkModule(LightningModule):
-    def __init__(self, model=None):
+    def __init__(self, model=None, si_loss=True, mixture_residual="pass"):
         super().__init__()
         if model is None:
             self.model = MRX()
         else:
             self.model = model
+        self.si_loss = si_loss
+        self.mixture_residual = mixture_residual
 
     def _step(self, batch, batch_idx, split):
         x, y, filenames = batch
         y_hat = self.model(x)
-        loss = si_snr(y_hat, y).mean()
+        y_hat = dnr_consistency(x, y_hat, mode=self.mixture_residual)
+        loss = snr_loss(y_hat, y, scale_invariant=self.si_loss).mean()
         self.log(f"{split}_loss", loss, on_step=True, on_epoch=True)
         return loss
 
@@ -40,20 +44,23 @@ class CocktailForkModule(LightningModule):
     def test_step(self, batch, batch_idx):
         x, y, filenames = batch
         y_hat = self.model(x)
-        est_sdr = -si_snr(y_hat, y)
-        est_sdr = est_sdr.mean(-1).mean(0)  # average of batch and channel
+        y_hat = dnr_consistency(x, y_hat, mode=self.mixture_residual)
+        est_sisdr = -snr_loss(y_hat, y, scale_invariant=True).mean(-1).mean(0)  # average of batch and channel
+        est_snr = -snr_loss(y_hat, y, scale_invariant=False).mean(-1).mean(0)
         # expand mixture to shape of isolated sources for noisy SDR
         repeat_shape = len(y.shape) * [1]
         repeat_shape[1] = y.shape[1]
         x = x.unsqueeze(1).repeat(repeat_shape)
-        noisy_sdr = -si_snr(x, y)
-        noisy_sdr = noisy_sdr.mean(-1).mean(0)  # average of batch and channel
+        noisy_sisdr = -snr_loss(x, y, scale_invariant=True).mean(-1).mean(0)
+        noisy_snr = -snr_loss(x, y, scale_invariant=False).mean(-1).mean(0)
         result_dict = {}
         for i, src in enumerate(SOURCE_NAMES):
-            result_dict[f"noisy_{src}"] = noisy_sdr[i].item()
-            result_dict[f"est_{src}"] = est_sdr[i].item()
+            result_dict[f"noisy_sisdr_{src}"] = noisy_sisdr[i].item()
+            result_dict[f"est_sisdr_{src}"] = est_sisdr[i].item()
+            result_dict[f"noisy_snr_{src}"] = noisy_snr[i].item()
+            result_dict[f"est_snr_{src}"] = est_snr[i].item()
         self.log_dict(result_dict, on_epoch=True)
-        return est_sdr.mean()
+        return est_sisdr.mean()
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
@@ -102,7 +109,7 @@ def cli_main():
     parser.add_argument(
         "--root-dir",
         type=Path,
-        help="The path to the directory where the directory ``Libri2Mix`` or ``Libri3Mix`` is stored.",
+        help="The path to the DnR directory containing ``tr`` ``cv``  and ``tt`` directories.",
     )
     parser.add_argument(
         "--exp-dir", default=Path("./exp"), type=Path, help="The directory to save checkpoints and logs."
@@ -132,10 +139,25 @@ def cli_main():
         type=int,
         help="The number of workers for dataloader. (default: 4)",
     )
+    parser.add_argument(
+        "--loss",
+        default="si_snr",
+        type=str,
+        choices=["si_snr", "snr"],
+        help="The loss function for network training, either snr or si_snr. (default: si_snr)",
+    )
+    parser.add_argument(
+        "--mixture-residual",
+        default="pass",
+        type=str,
+        choices=["all", "pass", "music_sfx"],
+        help="Whether to add the residual to estimates, 'pass' doesn't add residual, 'all' splits residual among "
+        "all sources, 'music_sfx' splits residual among only music and sfx sources . (default: pass)",
+    )
 
     args = parser.parse_args()
-
-    model = CocktailForkModule()
+    si_loss = True if args.loss == "si_snr" else False
+    model = CocktailForkModule(si_loss=si_loss, mixture_residual=args.mixture_residual)
     train_loader, valid_loader, test_loader = _get_dataloaders(
         args.root_dir,
         args.train_batch_size,
