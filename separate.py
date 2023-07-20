@@ -17,9 +17,9 @@ from mrx import MRX
 DEFAULT_PRE_TRAINED_MODEL_PATH = Path("checkpoints") / "default_mrx_pre_trained_weights.pth"
 
 
-def load_default_pre_trained():
+def load_pre_trained(path=DEFAULT_PRE_TRAINED_MODEL_PATH):
     model = MRX().eval()
-    state_dict = torch.load(DEFAULT_PRE_TRAINED_MODEL_PATH)
+    state_dict = torch.load(path)
     model.load_state_dict(state_dict)
     return model
 
@@ -55,7 +55,7 @@ def _compute_gain(audio_tensor: torch.tensor, target_lufs: float) -> float:
 
 def separate_soundtrack(
     audio_tensor: torch.tensor,
-    separation_model: Optional[MRX] = None,
+    separation_model: Optional[Union[MRX, str, Path]] = None,
     device: Optional[int] = None,
     consistency_mode: Optional[str] = "pass",
     input_lufs: Optional[float] = -27.0,
@@ -65,8 +65,8 @@ def separate_soundtrack(
     otherwise the included pre-trained weights will be used.
 
     :param audio_tensor (torch.tensor): 2D Tensor of shape [channels, samples]. Assumed samplerate of 44.1 kHz.
-    :param separation_model (MRX, optional): a preloaded MRX model, or none to use included
-                                             pre-trained model.
+    :param separation_model (MRX, optional): a preloaded MRX model, a path to a pre-trained MRX
+                                             model, or none to use included pre-trained model.
     :param device (int, optional): The gpu device for model inference. (default: -1) [cpu]
     :param consistency_mode (str, optional): choices=["all", "pass", "music_sfx"],
                                              Whether to add the residual to estimates, 'pass' doesn't add residual,
@@ -79,7 +79,9 @@ def separate_soundtrack(
                             where each of the x_samples are 2D Tensor of shape [channels, samples]
     """
     if separation_model is None:
-        separation_model = load_default_pre_trained()
+        separation_model = load_pre_trained()
+    elif isinstance(separation_model, (str, Path)):
+        separation_model = load_pre_trained(separation_model)
     if device is not None:
         separation_model = separation_model.to(device)
         audio_tensor = audio_tensor.to(device)
@@ -97,7 +99,7 @@ def separate_soundtrack(
 def separate_soundtrack_file(
     audio_filepath: Union[str, Path],
     output_directory: Union[str, Path],
-    separation_model: Optional[MRX] = None,
+    separation_model: Optional[Union[MRX, str, Path]] = None,
     device: Optional[int] = None,
     consistency_mode: Optional[str] = "pass",
     input_lufs: Optional[float] = -27.0,
@@ -108,8 +110,8 @@ def separate_soundtrack_file(
 
     :param audio_filepath (Path): path to mixture audio file to be separated
     :param output_directory (Path): directory where separated audio files will be saved
-    :param separation_model (MRX, optional): a preloaded MRX model, or none to use included
-                                             pre-trained model.
+    :param separation_model (MRX, Path, optional): a preloaded MRX model, a path to a pre-trained MRX
+                                             model, or none to use included pre-trained model.
     :param device (int, optional): The gpu device for model inference. (default: -1) [cpu]
     :param consistency_mode (str, optional): choices=["all", "pass", "music_sfx"],
                                              Whether to add the residual to estimates, 'pass' doesn't add residual,
@@ -151,6 +153,12 @@ def cli_main():
         help="Whether to add the residual to estimates, 'pass' doesn't add residual, 'all' splits residual among "
         "all sources, 'music_sfx' splits residual among only music and sfx sources . (default: pass)",
     )
+    parser.add_argument(
+        "--ckpt-path",
+        default=None,
+        type=str,
+        help="Path to checkpoint file. If not provided, the included pre-trained weights will be used.",
+    )
     args = parser.parse_args()
     if args.gpu_device != -1:
         device = torch.device("cuda:" + str(args.gpu_device))
@@ -158,7 +166,8 @@ def cli_main():
         device = torch.device("cpu")
     output_dir = args.out_dir
     output_dir.mkdir(parents=True, exist_ok=True)
-    separate_soundtrack_file(args.audio_path, output_dir, device=device, consistency_mode=args.mixture_residual)
+    separate_soundtrack_file(args.audio_path, output_dir, separation_model=args.ckpt_path,
+                             device=device, consistency_mode=args.mixture_residual)
 
 
 if __name__ == "__main__":
