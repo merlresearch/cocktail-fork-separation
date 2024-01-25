@@ -26,9 +26,10 @@ If you use any part of this code for your work, we ask that you include the foll
 
 1. [Environment Setup](#environment-setup)
 2. [Using a pre-trained model](#using-a-pre-trained-model)
-3. [Training a model on the Divide and Remaster Dataset](#training-a-model-on-the-divide-and-remaster-dataset)
-4. [Evaluating a model on the Divide and Remaster Dataset](#evaluating-a-model-on-the-divide-and-remaster-dataset)
-5. [License](#license)
+3. [List of included pre-trained models](#list-of-included-pre-trained-models)
+4. [Training a model on the Divide and Remaster Dataset](#training-a-model-on-the-divide-and-remaster-dataset)
+5. [Evaluating a model on the Divide and Remaster Dataset](#evaluating-a-model-on-the-divide-and-remaster-dataset)
+6. [License](#license)
 
 ## Environment Setup
 
@@ -44,7 +45,7 @@ Please modify pytorch installation depending on your particular CUDA version if 
 
 ## Using a pre-trained model
 
-To separate a soundtrack (e.g., movie or TV commercial), we include via git LFS a pre-trained model,
+To separate a soundtrack (e.g., movie or TV commercial), we include via git LFS multiple pre-trained models,
 which can be used from the command line as:
 
 ```bash
@@ -72,10 +73,28 @@ my_model.load_state_dict(state_dict)
 enhanced_dict = separate.separate_soundtrack(audio_tensor, separation_model=my_model, ...)
 ```
 
-We include two pre-trained models in the `checkpoints` directory:
+## List of included pre-trained models
+
+We include via git LFS four pre-trained models in the `checkpoints` directory:
 1. `default_mrx_pre_trained_weights.pth`: This is the model trained using the default arguments from [`lightning_train.py`](./lightning_train.py), except the training loss is SNR (`--loss snr`). This ensures that the level of the output signals matches the mixture.
 2. `paper_mrx_pre_trained_weights.pth`: This is the model trained using the default arguments from [`lightning_train.py`](./lightning_train.py) including scale-invariant SNR loss function, which reproduces the results from our ICASSP paper.
 However, due to the scale-invariant training the level of the output signals will not match the mixture.
+3. `adapted_loudness_mrx_pre_trained_weights.pth`: Model trained by applying loudness normalization to each stem in the DnR dataset prior to training, in order to better match the distribution between DnR and real movie stems from the CDXDB23 hidden test set used in the Cinematic Demixing Track of the 2023 Sound Demixing (SDX) Challenge.
+For details on the adaptation process and model performance, please see Section 5 of the [Challenge Overview Paper](https://arxiv.org/abs/2308.06981).
+The model is trained using the default arguments from [`lightning_train.py`](./lightning_train.py), except that the training loss is SNR (`--loss snr`).
+4. `adapted_eq_mrx_pre_trained_weights.pth`: Same as Model 3 above, but stems are normalized with equalization instead of loudness.
+
+If you use models 3 or 4 in your work please cite the paper [The Sound Demixing Challenge 2023 – Cinematic Demixing Track Overview](https://arxiv.org/abs/2308.06981):
+
+    @article{uhlich2024sound,
+          title={The Sound Demixing Challenge 2023 $\unicode{x2013}$ Cinematic Demixing Track},
+          author={Stefan Uhlich and Giorgio Fabbro and Masato Hirano and Shusuke Takahashi and Gordon Wichern and
+                  Jonathan {Le Roux} and Dipam Chakraborty and Sharada Mohanty and Kai Li and Yi Luo and Jianwei Yu and
+                  Rongzhi Gu and Roman Solovyev and Alexander Stempkovskiy and Tatiana Habruseva and Mikhail Sukhovei
+                  and Yuki Mitsufuji},
+          year={2024},
+          journal={arXiv preprint arXiv:2308.06981}
+    }
 
 ## Training a model on the Divide and Remaster Dataset
 
